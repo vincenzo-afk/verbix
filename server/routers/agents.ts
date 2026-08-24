@@ -1,7 +1,8 @@
 import { TRPCError } from "@trpc/server";
+import { createHash } from "node:crypto";
 import { nanoid } from "nanoid";
 import { z } from "zod";
-import { createDeployedAgent, getPromptOwner, getPublicDeployedAgent, listDeployedAgentsForOwner } from "../db";
+import { consumeDeployedAgentRateLimit, createDeployedAgent, getPromptOwner, getPublicDeployedAgent, listDeployedAgentsForOwner } from "../db";
 import { executePromptWithFreeChatbot } from "../services/free-chatbot";
 import { compilePrompt } from "../../shared/prompt-engine";
 import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
@@ -23,6 +24,13 @@ export const agentsRouter = router({
   invoke: publicProcedure.input(z.object({ slug: z.string().min(1).max(144), variables: z.record(z.string(), z.string()).default({}) })).mutation(async ({ ctx, input }) => {
     const payload = await getPublicDeployedAgent(input.slug);
     if (!payload) throw new TRPCError({ code: "NOT_FOUND", message: "This agent is unavailable or private." });
+    const visitorHash = createHash("sha256").update(ctx.req.ip || "anonymous").digest("hex");
+    const allowed = await consumeDeployedAgentRateLimit({
+      agentId: payload.agent.id,
+      visitorHash,
+      hourlyLimit: payload.agent.rateLimitPerHour,
+    });
+    if (!allowed) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "This agent has reached its hourly usage limit. Please try again later." });
     const compiledPrompt = compilePrompt(payload.prompt.body, input.variables);
     return executePromptWithFreeChatbot({ prompt: compiledPrompt, identity: `agent:${payload.agent.id}:${ctx.req.ip || "anonymous"}` });
   }),

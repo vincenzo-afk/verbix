@@ -223,6 +223,23 @@ export const deployedAgents = mysqlTable(
   table => [index("deployed_agents_owner_idx").on(table.ownerId), index("deployed_agents_prompt_idx").on(table.promptId)],
 );
 
+export const deployedAgentRateLimits = mysqlTable(
+  "deployedAgentRateLimits",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    agentId: int("agentId").notNull(),
+    visitorHash: varchar("visitorHash", { length: 128 }).notNull(),
+    windowStart: timestamp("windowStart").notNull(),
+    requestCount: int("requestCount").default(0).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("deployed_agent_rate_limits_unique").on(table.agentId, table.visitorHash, table.windowStart),
+    index("deployed_agent_rate_limits_window_idx").on(table.agentId, table.windowStart),
+  ],
+);
+
 export const promptReports = mysqlTable("promptReports", {
   id: int("id").autoincrement().primaryKey(),
   promptId: int("promptId").notNull(),

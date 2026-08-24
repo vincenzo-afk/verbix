@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { localFallback, normalizeResponse } from "./free-chatbot";
+import { localFallback, normalizeResponse, providerResponseError } from "./free-chatbot";
 
 describe("free-chatbot adapter result normalization", () => {
   it("normalizes a valid structured provider response while preserving original prompt text", () => {
@@ -31,10 +31,19 @@ describe("free-chatbot adapter result normalization", () => {
     expect(result.warnings[0]).toContain("unstructured");
   });
 
+  it("rejects HTML pages and oversized provider payloads before they can be stored or rendered", () => {
+    const html = "<!doctype html><html><head><title>Provider error</title></head><body>Unavailable</body></html>";
+    expect(providerResponseError(html)).toContain("HTML page");
+    expect(providerResponseError("x".repeat(24_001))).toContain("oversized");
+    const fallback = normalizeResponse(html, "Plan {{project}}", "blackbox");
+    expect(fallback.provider).toBe("local-fallback");
+    expect(fallback.improvedPrompt).not.toContain("<html");
+    expect(fallback.improvedPrompt).toContain("{{project}}");
+  });
+
   it("makes a local fallback that retains variable tokens and constraints", () => {
     const result = localFallback("Build {{artifact}}", "Provider unavailable");
     expect(result.improvedPrompt).toContain("{{artifact}}");
     expect(result.constraints).toContain("Preserve the original prompt text and intent.");
   });
 });
-

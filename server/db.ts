@@ -4,6 +4,7 @@ import {
   categories,
   creatorAnalytics,
   deployedAgents,
+  deployedAgentRateLimits,
   InsertUser,
   moderationRecords,
   promptImprovements,
@@ -540,6 +541,34 @@ export async function getPublicDeployedAgent(slug: string) {
     .where(and(eq(deployedAgents.slug, slug), eq(deployedAgents.isPublic, true), eq(deployedAgents.isEnabled, true)))
     .limit(1);
   return rows[0] ?? null;
+}
+
+export async function consumeDeployedAgentRateLimit(input: { agentId: number; visitorHash: string; hourlyLimit: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Public agent execution is temporarily unavailable.");
+  const windowStart = new Date();
+  windowStart.setUTCMinutes(0, 0, 0);
+
+  return db.transaction(async tx => {
+    await tx.insert(deployedAgentRateLimits).values({
+      agentId: input.agentId,
+      visitorHash: input.visitorHash,
+      windowStart,
+      requestCount: 1,
+    }).onDuplicateKeyUpdate({
+      set: { requestCount: sql`${deployedAgentRateLimits.requestCount} + 1` },
+    });
+    const rows = await tx
+      .select({ requestCount: deployedAgentRateLimits.requestCount })
+      .from(deployedAgentRateLimits)
+      .where(and(
+        eq(deployedAgentRateLimits.agentId, input.agentId),
+        eq(deployedAgentRateLimits.visitorHash, input.visitorHash),
+        eq(deployedAgentRateLimits.windowStart, windowStart),
+      ))
+      .limit(1);
+    return (rows[0]?.requestCount ?? 1) <= input.hourlyLimit;
+  });
 }
 
 export async function upsertProviderCredential(input: { userId: number; provider: string; encryptedSecret: string; secretHint: string }) {
