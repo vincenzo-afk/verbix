@@ -22,7 +22,7 @@
 - [x] Exercise public discovery, prompt detail, creator profile, and public agent routes with success, empty, and error paths.
 - [x] Exercise successful published-prompt, creator-profile, and public-agent flows without creating synthetic customer content.
 - [x] Exercise explicit public route error responses in addition to visible not-found and empty states.
-- [ ] Exercise authenticated compose, workspace, versioning, execution, save/review/report, deployed-agent, and moderation workflows.
+- [x] Exercise authenticated compose, workspace, versioning, execution, save/review/report, deployed-agent, and moderation workflows.
 - [x] Fix confirmed testing defects, add regression coverage, rerun all checks, and push the updated review branch to GitHub.
 - [x] Reject oversized or HTML provider responses in the free-chatbot adapter and persist a bounded structured fallback instead.
 - [x] Enforce the persisted per-agent hourly rate limit in the public invoke procedure and cover the rejection path with regression tests.
