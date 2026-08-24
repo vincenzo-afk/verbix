@@ -58,6 +58,10 @@ export const prompts = mysqlTable(
     priceType: mysqlEnum("priceType", ["free", "premium"]).default("free").notNull(),
     categoryId: int("categoryId"),
     authorId: int("authorId").notNull(),
+    importCandidateId: int("importCandidateId"),
+    sourceAttribution: varchar("sourceAttribution", { length: 240 }),
+    sourceUrl: text("sourceUrl"),
+    sourceLicense: text("sourceLicense"),
     modelCompatibility: json("modelCompatibility").$type<string[]>().notNull(),
     averageRating: int("averageRating").default(0).notNull(),
     ratingCount: int("ratingCount").default(0).notNull(),
@@ -238,6 +242,113 @@ export const deployedAgentRateLimits = mysqlTable(
     uniqueIndex("deployed_agent_rate_limits_unique").on(table.agentId, table.visitorHash, table.windowStart),
     index("deployed_agent_rate_limits_window_idx").on(table.agentId, table.windowStart),
   ],
+);
+
+export const importIngestionJobs = mysqlTable(
+  "importIngestionJobs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    sourceId: int("sourceId").notNull(),
+    requestedById: int("requestedById").notNull(),
+    status: mysqlEnum("status", ["queued", "fetching", "extracting", "completed", "partial", "blocked", "failed"]).default("queued").notNull(),
+    candidatesCreated: int("candidatesCreated").default(0).notNull(),
+    outputsFound: int("outputsFound").default(0).notNull(),
+    errorMessage: varchar("errorMessage", { length: 500 }),
+    startedAt: timestamp("startedAt"),
+    finishedAt: timestamp("finishedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [index("import_ingestion_jobs_source_idx").on(table.sourceId), index("import_ingestion_jobs_status_idx").on(table.status)],
+);
+
+export const importDomainPolicies = mysqlTable(
+  "importDomainPolicies",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    domain: varchar("domain", { length: 255 }).notNull().unique(),
+    status: mysqlEnum("status", ["approved", "blocked", "review_required"]).default("review_required").notNull(),
+    termsUrl: text("termsUrl"),
+    reuseNotes: text("reuseNotes"),
+    reviewedById: int("reviewedById"),
+    reviewedAt: timestamp("reviewedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [index("import_domain_policies_status_idx").on(table.status)],
+);
+
+export const importSources = mysqlTable(
+  "importSources",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    submittedById: int("submittedById").notNull(),
+    submittedUrl: text("submittedUrl").notNull(),
+    urlHash: varchar("urlHash", { length: 64 }).notNull().unique(),
+    canonicalUrl: text("canonicalUrl"),
+    domain: varchar("domain", { length: 255 }).notNull(),
+    pageTitle: varchar("pageTitle", { length: 360 }),
+    displayedAuthor: varchar("displayedAuthor", { length: 240 }),
+    licenseNotice: text("licenseNotice"),
+    robotsState: mysqlEnum("robotsState", ["unknown", "allowed", "blocked", "unavailable"]).default("unknown").notNull(),
+    status: mysqlEnum("status", ["submitted", "fetching", "extracted", "blocked", "failed", "archived"]).default("submitted").notNull(),
+    httpStatus: int("httpStatus"),
+    contentHash: varchar("contentHash", { length: 64 }),
+    excerpt: text("excerpt"),
+    failureReason: varchar("failureReason", { length: 500 }),
+    fetchedAt: timestamp("fetchedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [index("import_sources_submitter_idx").on(table.submittedById), index("import_sources_status_idx").on(table.status)],
+);
+
+export const importCandidates = mysqlTable(
+  "importCandidates",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    sourceId: int("sourceId").notNull(),
+    submittedById: int("submittedById").notNull(),
+    sourcePromptText: text("sourcePromptText").notNull(),
+    title: varchar("title", { length: 180 }).notNull(),
+    description: text("description").notNull(),
+    structuredPrompt: text("structuredPrompt").notNull(),
+    modality: mysqlEnum("modality", ["text", "image", "video", "code", "audio", "three_d"]).default("text").notNull(),
+    modelHints: json("modelHints").$type<string[]>().notNull(),
+    variables: json("variables").$type<Array<{ name: string; purpose: string }>>().notNull(),
+    constraints: json("constraints").$type<string[]>().notNull(),
+    outputFormat: text("outputFormat").notNull(),
+    acceptanceCriteria: json("acceptanceCriteria").$type<string[]>().notNull(),
+    confidence: int("confidence").default(0).notNull(),
+    normalizationProvider: varchar("normalizationProvider", { length: 80 }).notNull(),
+    status: mysqlEnum("status", ["pending_review", "approved", "rejected", "duplicate", "promoted"]).default("pending_review").notNull(),
+    duplicatePromptId: int("duplicatePromptId"),
+    promotedPromptId: int("promotedPromptId"),
+    reviewedById: int("reviewedById"),
+    reviewedAt: timestamp("reviewedAt"),
+    reviewerNote: text("reviewerNote"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [index("import_candidates_source_idx").on(table.sourceId), index("import_candidates_status_idx").on(table.status)],
+);
+
+export const importExampleOutputs = mysqlTable(
+  "importExampleOutputs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    candidateId: int("candidateId").notNull(),
+    sourceUrl: text("sourceUrl").notNull(),
+    mediaUrl: text("mediaUrl").notNull(),
+    mediaType: mysqlEnum("mediaType", ["image", "video", "audio", "other"]).notNull(),
+    altText: varchar("altText", { length: 500 }),
+    rightsState: mysqlEnum("rightsState", ["public_reference", "permission_confirmed", "unknown", "excluded"]).default("public_reference").notNull(),
+    status: mysqlEnum("status", ["pending_review", "approved", "rejected"]).default("pending_review").notNull(),
+    reviewedById: int("reviewedById"),
+    reviewedAt: timestamp("reviewedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [index("import_example_outputs_candidate_idx").on(table.candidateId), index("import_example_outputs_status_idx").on(table.status)],
 );
 
 export const promptReports = mysqlTable("promptReports", {

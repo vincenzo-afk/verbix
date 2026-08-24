@@ -9,6 +9,7 @@ import Compose from "./pages/Compose";
 import CreatorProfile from "./pages/CreatorProfile";
 import Discover from "./pages/Discover";
 import Home from "./pages/Home";
+import Imports from "./pages/Imports";
 import NotFound from "./pages/NotFound";
 import PromptDetail from "./pages/PromptDetail";
 import PublicAgent from "./pages/PublicAgent";
@@ -20,6 +21,7 @@ function Router() {
     <Route path="/" component={Home} />
     <Route path="/discover" component={Discover} />
     <Route path="/compose" component={Compose} />
+    <Route path="/imports" component={Imports} />
     <Route path="/workspace/:id" component={WorkspaceEditor} />
     <Route path="/workspace" component={Workspace} />
     <Route path="/admin" component={Admin} />
