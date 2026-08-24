@@ -1,0 +1,38 @@
+# Project TODO
+
+- [x] Verify the free-chatbot Node.js package API, package version, supported providers, and server-only runtime behavior.
+- [x] Create a server-side free-chatbot prompt-enhancement adapter with provider fallback, timeouts, rate limiting, normalized structured results, and unavailable-provider fallback states.
+- [x] Define database models and apply migrations for prompts, versions, variables, saves, improvements, reviews, run metadata, analytics, moderation records, categories, tags, and reports.
+- [x] Build typed backend procedures with server-enforced authentication, ownership checks, and admin-role gates.
+- [x] Establish the modern responsive isometric visual system using translucent teal, blue, and coral geometric forms on a clean grid-textured white background.
+- [x] Implement public discovery with featured, trending, and recent sections; search; filters; categories; tags; model compatibility; prompt details; and related prompts.
+- [x] Implement {{variable}} parsing, form generation, validation, live compiled preview, copy, and reset actions.
+- [x] Build the prompt composer and editable prompt-improvement workflow that preserves original text and presents intent, assumptions, missing information, constraints, variables, output format, and acceptance criteria.
+- [x] Build authenticated workspace flows for creating, saving, editing, versioning, submitting, exporting, and sharing prompts, with accepted improvements stored as versions.
+- [x] Build execution/deployment foundations with provider adapters, text/JSON export, run states/history, and safe downstream credential handling.
+- [x] Build community and creator features including public profiles, attribution, saves, ratings/reviews, and creator analytics.
+- [x] Build an admin moderation experience for submitted prompts, reviews, tags/categories, and reports with backend role enforcement.
+- [x] Add accessible loading, empty, invalid-input, permission, error, unavailable-provider, and not-found states without dead-end controls.
+- [x] Add explicit trending and recent discovery sections plus tag and model-compatibility filter controls.
+- [x] Wire typed variable inputs and visible accessible validation errors into the prompt workbench.
+- [x] Create public creator profile routes with attribution, published prompts, and creator metrics.
+- [x] Add visible invalid-input feedback for review submission and complete final verification of all form states.
+- [x] Add unit tests for variable parsing, prompt improvement normalization, provider fallback, authorization, and core backend rules.
+- [x] Verify desktop and mobile UI behavior, production build, type checks, and test suite; update documentation and create a final checkpoint.
+- [x] Exercise public discovery, prompt detail, creator profile, and public agent routes with success, empty, and error paths.
+- [x] Exercise successful published-prompt, creator-profile, and public-agent flows without creating synthetic customer content.
+- [x] Exercise explicit public route error responses in addition to visible not-found and empty states.
+- [x] Exercise authenticated compose, workspace, versioning, execution, save/review/report, deployed-agent, and moderation workflows.
+- [x] Fix confirmed testing defects, add regression coverage, rerun all checks, and push the updated review branch to GitHub.
+- [x] Reject oversized or HTML provider responses in the free-chatbot adapter and persist a bounded structured fallback instead.
+- [x] Enforce the persisted per-agent hourly rate limit in the public invoke procedure and cover the rejection path with regression tests.
+- [x] Confirm approved public source policy, crawl frequency, and automatic-ingestion operating model.
+- [x] Document manual on-demand ingestion, reviewer-submitted public URLs, source provenance, and permitted example-output policy.
+- [x] Add durable source, ingestion-job, provenance, extracted-prompt, and example-output records with moderation states.
+- [x] Implement rights-aware source fetching with robots/terms allowlists, content limits, duplicate prevention, and source attribution.
+- [x] Add AI-based prompt extraction and normalization for text, image, video, code, audio, and 3D generation prompts while preserving source text and licensing metadata.
+- [x] Add a creator/admin ingestion review experience with structured fields, modality classification, source links, and legitimately available example outputs.
+- [x] Test ingestion safety, normalization, permissions, media provenance, and source approval workflows; checkpoint and push the update to GitHub.
+- [x] Add importer authorization tests for anonymous creator routes and non-admin review, promotion, and domain-policy routes.
+- [x] Preserve the importer’s explicit candidate count in its server response so submission feedback is accurate.
+- [x] Enforce administrator-reviewed domain policy and terms/access eligibility before any source fetch; cover both approved and blocked paths.
