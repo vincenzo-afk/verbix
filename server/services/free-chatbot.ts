@@ -55,6 +55,7 @@ export class FreeChatbotUnavailableError extends Error {
 }
 
 const MAX_PROMPT_LENGTH = 12_000;
+const MAX_PROVIDER_RESPONSE_LENGTH = 24_000;
 const REQUEST_TIMEOUT_MS = 16_000;
 const MAX_REQUESTS_PER_WINDOW = 8;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
@@ -93,6 +94,13 @@ function extractJson(raw: string) {
   } catch {
     return null;
   }
+}
+
+function providerResponseError(raw: string) {
+  const sample = raw.trim().slice(0, 400);
+  if (raw.length > MAX_PROVIDER_RESPONSE_LENGTH) return "returned an oversized response";
+  if (/<!doctype\s+html|<html[\s>]|<head[\s>]|<body[\s>]|<script[\s>]/i.test(sample)) return "returned an HTML page instead of model output";
+  return null;
 }
 
 function localFallback(prompt: string, warning: string): PromptImprovement {
@@ -154,6 +162,8 @@ ${input.prompt}`;
 }
 
 function normalizeResponse(raw: string, originalPrompt: string, provider: PromptImprovement["provider"]): PromptImprovement {
+  const responseError = providerResponseError(raw);
+  if (responseError) return localFallback(originalPrompt, `The provider ${responseError}; Verbix generated a safe editable fallback.`);
   const parsed = extractJson(raw);
   const validation = improvementSchema.safeParse(parsed);
 
@@ -161,12 +171,7 @@ function normalizeResponse(raw: string, originalPrompt: string, provider: Prompt
     return { ...validation.data, originalPrompt, provider, isFallback: false };
   }
 
-  return {
-    ...localFallback(originalPrompt, "The provider returned unstructured output; Verbix generated a safe editable fallback."),
-    improvedPrompt: raw.trim() || originalPrompt,
-    provider,
-    isFallback: true,
-  };
+  return localFallback(originalPrompt, "The provider returned unstructured output; Verbix generated a safe editable fallback.");
 }
 
 export async function improvePromptWithFreeChatbot(input: ImprovePromptInput): Promise<PromptImprovement> {
@@ -200,6 +205,8 @@ export async function improvePromptWithFreeChatbot(input: ImprovePromptInput): P
       const response = await withTimeout(Promise.resolve(provider.run()), provider.id);
       const raw = typeof response === "string" ? response : JSON.stringify(response);
       if (!raw.trim()) throw new Error("returned an empty response");
+      const responseError = providerResponseError(raw);
+      if (responseError) throw new Error(responseError);
       return normalizeResponse(raw, prompt, provider.id);
     } catch (error) {
       failures.push(`${provider.id}: ${error instanceof Error ? error.message : "unknown error"}`);
@@ -230,6 +237,8 @@ export async function executePromptWithFreeChatbot(input: { prompt: string; iden
       const response = await withTimeout(Promise.resolve(provider.run()), provider.id);
       const output = typeof response === "string" ? response.trim() : JSON.stringify(response);
       if (!output) throw new Error("returned an empty response");
+      const responseError = providerResponseError(output);
+      if (responseError) throw new Error(responseError);
       return { output, provider: provider.id, model: provider.model };
     } catch (error) {
       failures.push(`${provider.id}: ${error instanceof Error ? error.message : "unknown error"}`);
@@ -239,4 +248,4 @@ export async function executePromptWithFreeChatbot(input: { prompt: string; iden
   throw new FreeChatbotUnavailableError(`No free-chatbot provider responded successfully. ${failures.join(" | ")}`);
 }
 
-export { buildEnhancementRequest, localFallback, normalizeResponse };
+export { buildEnhancementRequest, localFallback, normalizeResponse, providerResponseError };
