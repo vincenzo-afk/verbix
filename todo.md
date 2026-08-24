@@ -26,3 +26,12 @@
 - [x] Fix confirmed testing defects, add regression coverage, rerun all checks, and push the updated review branch to GitHub.
 - [x] Reject oversized or HTML provider responses in the free-chatbot adapter and persist a bounded structured fallback instead.
 - [x] Enforce the persisted per-agent hourly rate limit in the public invoke procedure and cover the rejection path with regression tests.
+- [x] Confirm approved public source policy, crawl frequency, and automatic-ingestion operating model.
+- [x] Document manual on-demand ingestion, reviewer-submitted public URLs, source provenance, and permitted example-output policy.
+- [x] Add durable source, ingestion-job, provenance, extracted-prompt, and example-output records with moderation states.
+- [x] Implement rights-aware source fetching with robots/terms allowlists, content limits, duplicate prevention, and source attribution.
+- [x] Add AI-based prompt extraction and normalization for text, image, video, code, audio, and 3D generation prompts while preserving source text and licensing metadata.
+- [x] Add a creator/admin ingestion review experience with structured fields, modality classification, source links, and legitimately available example outputs.
+- [ ] Test ingestion safety, normalization, permissions, media provenance, and source approval workflows; checkpoint and push the update to GitHub.
+- [x] Preserve the importer’s explicit candidate count in its server response so submission feedback is accurate.
+- [x] Enforce administrator-reviewed domain policy and terms/access eligibility before any source fetch; cover both approved and blocked paths.

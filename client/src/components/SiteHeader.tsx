@@ -1,7 +1,7 @@
 import { startLogin } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Link, useLocation } from "wouter";
-import { Bot, Compass, LayoutDashboard, PenLine, ShieldCheck, Sparkles } from "lucide-react";
+import { Bot, Compass, FileSearch, LayoutDashboard, PenLine, ShieldCheck, Sparkles } from "lucide-react";
 
 const navItems = [
   { href: "/discover", label: "Discover", icon: Compass },
@@ -40,6 +40,11 @@ export function SiteHeader() {
           {isAuthenticated && (
             <Link href="/agents" className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${location.startsWith("/agents") ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}>
               <Bot className="h-4 w-4" /> Agents
+            </Link>
+          )}
+          {isAuthenticated && (
+            <Link href="/imports" className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${location.startsWith("/imports") ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}>
+              <FileSearch className="h-4 w-4" /> Imports
             </Link>
           )}
           {user?.role === "admin" && (

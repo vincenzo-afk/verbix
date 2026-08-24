@@ -5,6 +5,11 @@ import {
   creatorAnalytics,
   deployedAgents,
   deployedAgentRateLimits,
+  importCandidates,
+  importDomainPolicies,
+  importExampleOutputs,
+  importIngestionJobs,
+  importSources,
   InsertUser,
   moderationRecords,
   promptImprovements,
@@ -209,7 +214,7 @@ export async function getPublicPromptBySlug(slug: string) {
   const row = rows[0];
   if (!row) return null;
 
-  const [variables, promptTagsRows, versionRows, reviewRows] = await Promise.all([
+  const [variables, promptTagsRows, versionRows, reviewRows, importedExamples] = await Promise.all([
     db.select().from(promptVariables).where(eq(promptVariables.promptId, row.prompt.id)),
     db
       .select({ name: tags.name, slug: tags.slug })
@@ -228,9 +233,12 @@ export async function getPublicPromptBySlug(slug: string) {
       .where(and(eq(reviews.promptId, row.prompt.id), eq(reviews.status, "published")))
       .orderBy(desc(reviews.createdAt))
       .limit(30),
+    row.prompt.importCandidateId
+      ? db.select().from(importExampleOutputs).where(and(eq(importExampleOutputs.candidateId, row.prompt.importCandidateId), eq(importExampleOutputs.status, "approved"))).limit(12)
+      : Promise.resolve([]),
   ]);
 
-  return { ...row, variables, tags: promptTagsRows, versions: versionRows, reviews: reviewRows };
+  return { ...row, variables, tags: promptTagsRows, versions: versionRows, reviews: reviewRows, importedExamples };
 }
 
 export async function getPromptOwner(promptId: number) {
@@ -620,4 +628,247 @@ export async function bumpCreatorMetric(promptId: number, metric: "views" | "run
 
 export async function recordPublicPromptView(promptId: number) {
   await bumpCreatorMetric(promptId, "views", 1);
+}
+
+export async function getImportSourceByHash(urlHash: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(importSources).where(eq(importSources.urlHash, urlHash)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getImportDomainPolicy(domain: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(importDomainPolicies).where(eq(importDomainPolicies.domain, domain)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function upsertImportDomainPolicy(input: { domain: string; status: "approved" | "blocked" | "review_required"; reviewerId: number; termsUrl?: string; reuseNotes?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable.");
+  await db.insert(importDomainPolicies).values({
+    domain: input.domain,
+    status: input.status,
+    reviewedById: input.reviewerId,
+    reviewedAt: new Date(),
+    termsUrl: input.termsUrl,
+    reuseNotes: input.reuseNotes,
+  }).onDuplicateKeyUpdate({
+    set: {
+      status: input.status,
+      reviewedById: input.reviewerId,
+      reviewedAt: new Date(),
+      termsUrl: input.termsUrl,
+      reuseNotes: input.reuseNotes,
+    },
+  });
+}
+
+export async function createImportSource(input: { submittedById: number; submittedUrl: string; urlHash: string; domain: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable.");
+  const [result] = await db.insert(importSources).values(input);
+  return Number(result.insertId);
+}
+
+export async function getImportSourceForUser(sourceId: number, userId: number, isAdmin = false) {
+  const db = await getDb();
+  if (!db) return null;
+  const filters = isAdmin ? [eq(importSources.id, sourceId)] : [eq(importSources.id, sourceId), eq(importSources.submittedById, userId)];
+  const rows = await db.select().from(importSources).where(and(...filters)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function listImportSourcesForUser(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(importSources).where(eq(importSources.submittedById, userId)).orderBy(desc(importSources.updatedAt)).limit(60);
+}
+
+export async function createImportJob(input: { sourceId: number; requestedById: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable.");
+  const [result] = await db.insert(importIngestionJobs).values({ ...input, status: "queued" });
+  return Number(result.insertId);
+}
+
+export async function updateImportSource(sourceId: number, values: Partial<typeof importSources.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable.");
+  await db.update(importSources).set(values).where(eq(importSources.id, sourceId));
+}
+
+export async function updateImportJob(jobId: number, values: Partial<typeof importIngestionJobs.$inferInsert>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable.");
+  await db.update(importIngestionJobs).set(values).where(eq(importIngestionJobs.id, jobId));
+}
+
+export type StoredImportCandidate = {
+  sourcePromptText: string;
+  title: string;
+  description: string;
+  structuredPrompt: string;
+  modality: "text" | "image" | "video" | "code" | "audio" | "three_d";
+  modelHints: string[];
+  variables: Array<{ name: string; purpose: string }>;
+  constraints: string[];
+  outputFormat: string;
+  acceptanceCriteria: string[];
+  confidence: number;
+  normalizationProvider: string;
+};
+
+export type StoredExampleOutput = {
+  sourceUrl: string;
+  mediaUrl: string;
+  mediaType: "image" | "video" | "audio" | "other";
+  altText?: string;
+};
+
+export async function storeImportExtraction(input: {
+  sourceId: number;
+  submittedById: number;
+  source: Partial<typeof importSources.$inferInsert>;
+  jobId: number;
+  candidates: StoredImportCandidate[];
+  exampleOutputs: StoredExampleOutput[];
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable.");
+  return db.transaction(async tx => {
+    await tx.update(importSources).set({ ...input.source, status: "extracted", fetchedAt: new Date() }).where(eq(importSources.id, input.sourceId));
+    const candidateIds: number[] = [];
+    for (const candidate of input.candidates) {
+      const [result] = await tx.insert(importCandidates).values({
+        sourceId: input.sourceId,
+        submittedById: input.submittedById,
+        ...candidate,
+        status: "pending_review",
+      });
+      candidateIds.push(Number(result.insertId));
+    }
+    const firstCandidateId = candidateIds[0];
+    if (firstCandidateId && input.exampleOutputs.length) {
+      await tx.insert(importExampleOutputs).values(input.exampleOutputs.slice(0, 12).map(output => ({
+        candidateId: firstCandidateId,
+        ...output,
+        rightsState: "public_reference" as const,
+        status: "pending_review" as const,
+      })));
+    }
+    await tx.update(importIngestionJobs).set({
+      status: input.candidates.length ? "completed" : "partial",
+      candidatesCreated: candidateIds.length,
+      outputsFound: input.exampleOutputs.length,
+      finishedAt: new Date(),
+    }).where(eq(importIngestionJobs.id, input.jobId));
+    return { candidateIds, outputsFound: input.exampleOutputs.length };
+  });
+}
+
+export async function markImportFailed(input: { sourceId: number; jobId: number; status: "blocked" | "failed"; reason: string; robotsState?: "blocked" | "unavailable" }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable.");
+  await db.transaction(async tx => {
+    await tx.update(importSources).set({
+      status: input.status === "blocked" ? "blocked" : "failed",
+      failureReason: input.reason.slice(0, 500),
+      ...(input.robotsState ? { robotsState: input.robotsState } : {}),
+      fetchedAt: new Date(),
+    }).where(eq(importSources.id, input.sourceId));
+    await tx.update(importIngestionJobs).set({ status: input.status, errorMessage: input.reason.slice(0, 500), finishedAt: new Date() }).where(eq(importIngestionJobs.id, input.jobId));
+  });
+}
+
+export async function listImportCandidatesForUser(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({ candidate: importCandidates, source: importSources })
+    .from(importCandidates)
+    .innerJoin(importSources, eq(importSources.id, importCandidates.sourceId))
+    .where(eq(importCandidates.submittedById, userId))
+    .orderBy(desc(importCandidates.updatedAt))
+    .limit(80);
+}
+
+export async function listImportReviewQueue() {
+  const db = await getDb();
+  if (!db) return { candidates: [], approvedCandidates: [], outputs: [], sources: [], policies: [] };
+  const [candidates, approvedCandidates, outputs, sources, policies] = await Promise.all([
+    db.select({ candidate: importCandidates, source: importSources }).from(importCandidates).innerJoin(importSources, eq(importSources.id, importCandidates.sourceId)).where(eq(importCandidates.status, "pending_review")).orderBy(desc(importCandidates.createdAt)).limit(80),
+    db.select({ candidate: importCandidates, source: importSources }).from(importCandidates).innerJoin(importSources, eq(importSources.id, importCandidates.sourceId)).where(eq(importCandidates.status, "approved")).orderBy(desc(importCandidates.reviewedAt)).limit(80),
+    db.select({ output: importExampleOutputs, candidate: importCandidates, source: importSources }).from(importExampleOutputs).innerJoin(importCandidates, eq(importCandidates.id, importExampleOutputs.candidateId)).innerJoin(importSources, eq(importSources.id, importCandidates.sourceId)).where(eq(importExampleOutputs.status, "pending_review")).orderBy(desc(importExampleOutputs.createdAt)).limit(80),
+    db.select().from(importSources).where(or(eq(importSources.status, "submitted"), eq(importSources.status, "blocked"), eq(importSources.status, "failed"))).orderBy(desc(importSources.updatedAt)).limit(40),
+    db.select().from(importDomainPolicies).orderBy(desc(importDomainPolicies.updatedAt)).limit(80),
+  ]);
+  return { candidates, approvedCandidates, outputs, sources, policies };
+}
+
+export async function reviewImportCandidate(input: { candidateId: number; reviewerId: number; action: "approve" | "reject"; note?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable.");
+  await db.update(importCandidates).set({
+    status: input.action === "approve" ? "approved" : "rejected",
+    reviewedById: input.reviewerId,
+    reviewedAt: new Date(),
+    reviewerNote: input.note,
+  }).where(eq(importCandidates.id, input.candidateId));
+}
+
+export async function reviewImportOutput(input: { outputId: number; reviewerId: number; action: "approve" | "reject" }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable.");
+  await db.update(importExampleOutputs).set({
+    status: input.action === "approve" ? "approved" : "rejected",
+    reviewedById: input.reviewerId,
+    reviewedAt: new Date(),
+  }).where(eq(importExampleOutputs.id, input.outputId));
+}
+
+export async function promoteImportCandidate(input: { candidateId: number; reviewerId: number; slug: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable.");
+  return db.transaction(async tx => {
+    const rows = await tx
+      .select({ candidate: importCandidates, source: importSources })
+      .from(importCandidates)
+      .innerJoin(importSources, eq(importSources.id, importCandidates.sourceId))
+      .where(eq(importCandidates.id, input.candidateId))
+      .limit(1);
+    const record = rows[0];
+    if (!record) throw new Error("Import candidate not found.");
+    if (record.candidate.status !== "approved") throw new Error("Approve the import candidate before promoting it.");
+    const [result] = await tx.insert(prompts).values({
+      slug: input.slug,
+      title: record.candidate.title,
+      description: record.candidate.description,
+      body: record.candidate.structuredPrompt,
+      promptType: record.candidate.modality,
+      visibility: "public",
+      status: "published",
+      priceType: "free",
+      authorId: record.candidate.submittedById,
+      importCandidateId: record.candidate.id,
+      sourceAttribution: record.source.displayedAuthor ?? record.source.domain,
+      sourceUrl: record.source.canonicalUrl ?? record.source.submittedUrl,
+      sourceLicense: record.source.licenseNotice,
+      modelCompatibility: record.candidate.modelHints,
+      publishedAt: new Date(),
+    });
+    const promptId = Number(result.insertId);
+    await tx.insert(promptVersions).values({
+      promptId,
+      versionNumber: 1,
+      title: record.candidate.title,
+      body: record.candidate.structuredPrompt,
+      changeNote: "Imported from an approved external source with attribution.",
+      source: "manual",
+      createdById: input.reviewerId,
+    });
+    await tx.update(importCandidates).set({ status: "promoted", promotedPromptId: promptId, reviewedById: input.reviewerId, reviewedAt: new Date() }).where(eq(importCandidates.id, input.candidateId));
+    return promptId;
+  });
 }

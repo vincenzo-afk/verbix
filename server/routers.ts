@@ -8,6 +8,7 @@ import { credentialsRouter } from "./routers/credentials";
 import { discoveryRouter } from "./routers/discovery";
 import { executionRouter } from "./routers/execution";
 import { improvementRouter } from "./routers/improvement";
+import { importerRouter } from "./routers/importer";
 import { workspaceRouter } from "./routers/workspace";
 
 export const appRouter = router({
@@ -27,6 +28,7 @@ export const appRouter = router({
   admin: adminRouter,
   agents: agentsRouter,
   credentials: credentialsRouter,
+  importer: importerRouter,
 });
 
 export type AppRouter = typeof appRouter;
