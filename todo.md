@@ -40,4 +40,4 @@
 - [x] Rewrite README.md and add accurate contributor, security, issue, and pull-request guidance based only on implemented Verbix capabilities.
 - [x] Add and validate a repository-appropriate continuous-integration workflow using the existing package scripts.
 - [x] Apply high-signal GitHub topics and an accurate repository description, preserving only verified metadata.
-- [ ] Rewrite main history with the repository owner's configured Git identity, force-push the replacement history, and verify no agent account appears in contributors.
+- [x] Rewrite main history with the repository owner's configured Git identity, force-push the replacement history, and verify no agent account appears in contributors.
