@@ -17,6 +17,8 @@ jobs:
   validate:
     name: Test, type-check, and build
     runs-on: ubuntu-latest
+    env:
+      JWT_SECRET: ci-test-only-session-secret
     steps:
       - name: Check out source
         uses: actions/checkout@v4
