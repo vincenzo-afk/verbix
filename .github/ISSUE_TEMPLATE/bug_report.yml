@@ -1,0 +1,39 @@
+name: Bug report
+description: Report reproducible behavior that differs from Verbix’s intended behavior.
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include credentials, personal data, or security-sensitive exploit details. Use the security policy for vulnerabilities.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe what happened and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: List the smallest steps that consistently reproduce the behavior.
+      placeholder: |
+        1. Go to …
+        2. Enter …
+        3. Observe …
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include browser, operating system, deployment context, and relevant non-sensitive configuration.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs or screenshots
+      description: Add non-sensitive evidence that helps diagnose the issue.

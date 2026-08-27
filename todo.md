@@ -36,3 +36,8 @@
 - [x] Add importer authorization tests for anonymous creator routes and non-admin review, promotion, and domain-policy routes.
 - [x] Preserve the importer’s explicit candidate count in its server response so submission feedback is accurate.
 - [x] Enforce administrator-reviewed domain policy and terms/access eligibility before any source fetch; cover both approved and blocked paths.
+- [x] Audit the current Verbix codebase, GitHub metadata, workflow state, and commit attribution before repository polish.
+- [x] Rewrite README.md and add accurate contributor, security, issue, and pull-request guidance based only on implemented Verbix capabilities.
+- [x] Add and validate a repository-appropriate continuous-integration workflow using the existing package scripts.
+- [x] Apply high-signal GitHub topics and an accurate repository description, preserving only verified metadata.
+- [ ] Rewrite main history with the repository owner's configured Git identity, force-push the replacement history, and verify no agent account appears in contributors.

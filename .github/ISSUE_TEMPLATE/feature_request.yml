@@ -1,0 +1,37 @@
+name: Feature request
+description: Suggest a focused improvement to Verbix.
+title: "feature: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Describe the user need or workflow limitation.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed outcome
+      description: Explain the behavior you would expect.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe any workarounds or alternative approaches.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Product area
+      options:
+        - Discovery
+        - Prompt composition
+        - AI enhancement or execution
+        - Workspace and versions
+        - Agents
+        - Imports and source policies
+        - Administration and moderation
+        - Documentation or developer experience
